@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>전국 시계매장 및 전당포</title>
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=8595e08edc267cf6c5acb37884bd6ac3&libraries=clusterer&autoload=false"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --black: #1a1a1a;
+            --dark-gray: #2d2d2d;
+            --gray: #666;
+            --light-gray: #e5e5e5;
+            --white: #ffffff;
+            --orange: #FF6B00;
+            --orange-light: #FF8533;
+            --orange-dark: #CC5500;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--black);
+            color: var(--white);
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* 헤더 */
+        .header {
+            background: var(--black);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--dark-gray);
+            position: relative;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .header h1:hover {
+            opacity: 0.8;
+        }
+
+        .header h1 span {
+            color: var(--orange);
+        }
+
+        .total-count {
+            font-size: 11px;
+            color: var(--gray);
+            text-align: right;
+        }
+
+        .total-count strong {
+            color: var(--orange);
+        }
+
+        /* 필터 바 */
+        .filter-bar {
+            background: var(--white);
+            padding: 10px 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 100;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .filter-select {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 32px 10px 12px;
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            font-size: 13px;
+            background: var(--white);
+            color: var(--black);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+
+        .sort-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            background: var(--white);
+            color: var(--gray);
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .sort-btn:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+
+        .sort-btn.asc {
+            color: var(--orange);
+            border-color: var(--orange);
+        }
+
+        .type-toggle {
+            display: flex;
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .type-btn {
+            padding: 10px 10px;
+            font-size: 12px;
+            border: none;
+            background: var(--white);
+            color: var(--gray);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .type-btn.active {
+            background: var(--orange);
+            color: var(--white);
+        }
+
+        .type-btn:not(:last-child) {
+            border-right: 1px solid var(--light-gray);
+        }
+
+        /* 통계 바 */
+        .stats-bar {
+            background: var(--dark-gray);
+            padding: 12px;
+            font-size: 12px;
+        }
+
+        .stats-total {
+            color: var(--white);
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .stats-total strong {
+            color: var(--orange);
+            font-size: 18px;
+        }
+
+        .stats-total span {
+            color: var(--gray);
+            font-size: 12px;
+        }
+
+        .stats-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stats-section {
+            background: var(--black);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .stats-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .stats-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .watch-label {
+            color: var(--orange);
+        }
+
+        .pawn-label {
+            color: #aaa;
+        }
+
+        .stats-value {
+            font-size: 12px;
+            color: var(--white);
+        }
+
+        .stats-value strong {
+            color: var(--orange-light);
+            font-size: 14px;
+        }
+
+        .region-dist {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .region-chip {
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            background: var(--dark-gray);
+            color: var(--white);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .region-chip:hover {
+            background: var(--orange-dark);
+        }
+
+        .region-chip .region-name {
+            margin-right: 2px;
+        }
+
+        .region-chip .region-count {
+            color: var(--orange-light);
+        }
+
+        .region-chip.watch-chip:hover {
+            background: var(--orange);
+        }
+
+        .region-chip.pawn-chip:hover {
+            background: #555;
+        }
+
+        /* 시군구 분포 */
+        .sigungu-distribution {
+            background: var(--black);
+            padding: 8px 12px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s, padding 0.3s;
+        }
+
+        .sigungu-distribution.show {
+            max-height: 200px;
+            padding: 10px 12px;
+            overflow-y: auto;
+        }
+
+        .sigungu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 6px;
+        }
+
+        .sigungu-item {
+            background: var(--dark-gray);
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .sigungu-item:hover {
+            background: var(--orange-dark);
+        }
+
+        .sigungu-item.active {
+            background: var(--orange);
+        }
+
+        .sigungu-name {
+            color: var(--white);
+        }
+
+        .sigungu-count {
+            color: var(--orange-light);
+            font-weight: 600;
+        }
+
+        .sigungu-item.active .sigungu-count {
+            color: var(--white);
+        }
+
+        /* 지도 */
+        .map-container {
+            position: relative;
+            flex: 1;
+            height: calc(100vh - 220px);
+            height: calc(100dvh - 220px);
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 하단 시트 */
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 200;
+            transition: transform 0.3s ease;
+            max-height: 55vh;
+        }
+
+        .bottom-sheet.collapsed {
+            transform: translateY(calc(100% - 56px));
+        }
+
+        .sheet-handle {
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            cursor: grab;
+        }
+
+        .sheet-handle::before {
+            content: '';
+            width: 36px;
+            height: 4px;
+            background: var(--light-gray);
+            border-radius: 2px;
+        }
+
+        .sheet-header {
+            padding: 0 12px 10px;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .sheet-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--black);
+            margin-bottom: 2px;
+        }
+
+        .sheet-subtitle {
+            font-size: 11px;
+            color: var(--gray);
+        }
+
+        .store-list {
+            overflow-y: auto;
+            max-height: calc(55vh - 90px);
+            padding: 4px 0;
+        }
+
+        .store-item {
+            padding: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .store-item:hover {
+            background: #f9f9f9;
+        }
+
+        .store-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .store-icon.watch {
+            background: var(--orange);
+            color: var(--white);
+        }
+
+        .store-icon.pawn {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .store-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .store-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--black);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .store-address {
+            font-size: 11px;
+            color: var(--gray);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .store-type-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .store-type-badge.watch {
+            background: #FFF0E6;
+            color: var(--orange);
+        }
+
+        .store-type-badge.pawn {
+            background: #f0f0f0;
+            color: var(--black);
+        }
+
+        /* 커스텀 오버레이 */
+        .custom-overlay {
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            padding: 14px;
+            min-width: 220px;
+            max-width: 260px;
+        }
+
+        .overlay-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .overlay-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .overlay-icon.watch {
+            background: var(--orange);
+            color: var(--white);
+        }
+
+        .overlay-icon.pawn {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .overlay-title {
+            flex: 1;
+        }
+
+        .overlay-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--black);
+            margin-bottom: 2px;
+        }
+
+        .overlay-category {
+            font-size: 10px;
+            color: var(--gray);
+        }
+
+        .overlay-close {
+            width: 22px;
+            height: 22px;
+            border: none;
+            background: var(--light-gray);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay-body {
+            font-size: 12px;
+            color: var(--black);
+        }
+
+        .overlay-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .overlay-label {
+            color: var(--gray);
+            flex-shrink: 0;
+            width: 36px;
+        }
+
+        .overlay-value {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .overlay-link {
+            display: block;
+            margin-top: 10px;
+            padding: 8px;
+            background: var(--orange);
+            color: var(--white);
+            text-align: center;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* 로딩 */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--black);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--dark-gray);
+            border-top-color: var(--orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: var(--gray);
+            font-size: 14px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 반응형 - 태블릿 이상 */
+        @media (min-width: 768px) {
+            .header {
+                padding: 14px 24px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .total-count {
+                font-size: 13px;
+            }
+
+            .filter-bar {
+                padding: 12px 24px;
+                gap: 12px;
+            }
+
+            .filter-select {
+                min-width: 180px;
+                font-size: 14px;
+            }
+
+            .type-btn {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+
+            .stats-bar {
+                padding: 12px 24px;
+            }
+
+            .sigungu-distribution {
+                padding-left: 24px;
+                padding-right: 24px;
+            }
+
+            .sigungu-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .map-container {
+                height: calc(100vh - 200px);
+            }
+
+            .bottom-sheet {
+                max-width: 400px;
+                right: 20px;
+                left: auto;
+                border-radius: 16px 16px 0 0;
+            }
+        }
+
+        /* 반응형 - 데스크톱 */
+        @media (min-width: 1024px) {
+            .header {
+                padding: 16px 32px;
+            }
+
+            .filter-bar {
+                padding: 14px 32px;
+            }
+
+            .stats-bar {
+                padding: 14px 32px;
+            }
+
+            .sigungu-distribution {
+                padding-left: 32px;
+                padding-right: 32px;
+            }
+
+            .bottom-sheet {
+                max-width: 420px;
+                right: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">지도를 불러오는 중...</div>
+    </div>
+
+    <div class="header">
+        <h1 onclick="resetFilters()">🗺️ 전국 시계매장 <span>&</span> 전당포</h1>
+        <div class="total-count" id="totalCount">
+            전체 <strong>0</strong>개
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-row">
+            <select class="filter-select" id="sidoFilter">
+                <option value="">전체 지역</option>
+            </select>
+            <button class="sort-btn" id="sortBtn" onclick="toggleSort()">↓</button>
+        </div>
+        <select class="filter-select" id="sigunguFilter" style="display: none;">
+            <option value="">전체 시/군/구</option>
+        </select>
+        <div class="type-toggle">
+            <button class="type-btn active" data-type="">전체</button>
+            <button class="type-btn" data-type="시계매장">시계</button>
+            <button class="type-btn" data-type="전당포">전당포</button>
+        </div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stats-total">
+            <strong id="filteredCount">0</strong>개 매장 <span id="percentText">(100%)</span>
+        </div>
+        <div class="stats-detail">
+            <div class="stats-section">
+                <div class="stats-section-header">
+                    <span class="stats-label watch-label">시계매장</span>
+                    <span class="stats-value"><strong id="watchCount">0</strong>개</span>
+                </div>
+                <div class="region-dist" id="watchRegionDist"></div>
+            </div>
+            <div class="stats-section">
+                <div class="stats-section-header">
+                    <span class="stats-label pawn-label">전당포</span>
+                    <span class="stats-value"><strong id="pawnCount">0</strong>개</span>
+                </div>
+                <div class="region-dist" id="pawnRegionDist"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sigungu-distribution" id="sigunguDist">
+        <div class="sigungu-grid" id="sigunguGrid"></div>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+
+    <div class="bottom-sheet collapsed" id="bottomSheet">
+        <div class="sheet-handle" id="sheetHandle"></div>
+        <div class="sheet-header">
+            <div class="sheet-title" id="sheetTitle">매장 목록</div>
+            <div class="sheet-subtitle" id="sheetSubtitle">지역을 선택하세요</div>
+        </div>
+        <div class="store-list" id="storeList"></div>
+    </div>
+
+    <script src="stores_data.js"></script>
+    <script>
+        let map = null;
+        let markers = [];
+        let currentOverlay = null;
+        let clusterer = null;
+        let currentSido = '';
+        let currentSigungu = '';
+        let currentType = '';
+        let sortDescending = true; // true: 내림차순, false: 오름차순
+
+        const sidoCenter = {
+            '서울': { lat: 37.5665, lng: 126.9780, level: 8 },
+            '부산': { lat: 35.1796, lng: 129.0756, level: 8 },
+            '대구': { lat: 35.8714, lng: 128.6014, level: 8 },
+            '인천': { lat: 37.4563, lng: 126.7052, level: 9 },
+            '광주': { lat: 35.1595, lng: 126.8526, level: 8 },
+            '대전': { lat: 36.3504, lng: 127.3845, level: 8 },
+            '울산': { lat: 35.5384, lng: 129.3114, level: 8 },
+            '세종': { lat: 36.4800, lng: 127.2890, level: 8 },
+            '경기': { lat: 37.4138, lng: 127.5183, level: 10 },
+            '강원': { lat: 37.8228, lng: 128.1555, level: 11 },
+            '충북': { lat: 36.6357, lng: 127.4912, level: 10 },
+            '충남': { lat: 36.5184, lng: 126.8000, level: 10 },
+            '전북': { lat: 35.7175, lng: 127.1530, level: 10 },
+            '전남': { lat: 34.8679, lng: 126.9910, level: 10 },
+            '경북': { lat: 36.4919, lng: 128.8889, level: 10 },
+            '경남': { lat: 35.4606, lng: 128.2132, level: 10 },
+            '제주': { lat: 33.4890, lng: 126.4983, level: 10 }
+        };
+
+        // 홈으로 초기화
+        function resetFilters() {
+            document.getElementById('sidoFilter').value = '';
+            document.getElementById('sigunguFilter').value = '';
+            document.getElementById('sigunguFilter').style.display = 'none';
+            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.type-btn[data-type=""]').classList.add('active');
+            currentSido = '';
+            currentSigungu = '';
+            currentType = '';
+            applyFilters();
+        }
+
+        // 초기화 함수
+        function initApp() {
+            const total = storesData.length;
+            const watchTotal = storesData.filter(s => s.type === '시계매장').length;
+            const pawnTotal = storesData.filter(s => s.type === '전당포').length;
+
+            document.getElementById('totalCount').innerHTML = `전체 <strong>${total.toLocaleString()}</strong>개`;
+            initializeFilters();
+            initializeMap();
+        }
+
+        // 정렬 토글
+        function toggleSort() {
+            sortDescending = !sortDescending;
+            const btn = document.getElementById('sortBtn');
+            btn.textContent = sortDescending ? '↓' : '↑';
+            btn.classList.toggle('asc', !sortDescending);
+            updateSidoOptions();
+            if (currentSido) {
+                updateSigunguFilter();
+            }
+        }
+
+        // 시도 옵션 업데이트
+        function updateSidoOptions() {
+            const sidoFilter = document.getElementById('sidoFilter');
+            const currentValue = sidoFilter.value;
+
+            // 첫 번째 옵션(전체 지역) 제외하고 삭제
+            while (sidoFilter.options.length > 1) {
+                sidoFilter.remove(1);
+            }
+
+            const sidoStats = {};
+            storesData.forEach(s => {
+                if (s.sido) {
+                    sidoStats[s.sido] = (sidoStats[s.sido] || 0) + 1;
+                }
+            });
+
+            const sortedSidos = Object.entries(sidoStats)
+                .sort((a, b) => sortDescending ? b[1] - a[1] : a[1] - b[1])
+                .map(([sido, count]) => ({ sido, count }));
+
+            sortedSidos.forEach(({ sido, count }) => {
+                const percent = ((count / storesData.length) * 100).toFixed(1);
+                const option = document.createElement('option');
+                option.value = sido;
+                option.textContent = `${sido} (${count}개, ${percent}%)`;
+                sidoFilter.appendChild(option);
+            });
+
+            sidoFilter.value = currentValue;
+        }
+
+        // 필터 초기화
+        function initializeFilters() {
+            const sidoFilter = document.getElementById('sidoFilter');
+            const sigunguFilter = document.getElementById('sigunguFilter');
+
+            updateSidoOptions();
+
+            // 시도 필터 이벤트
+            sidoFilter.addEventListener('change', (e) => {
+                currentSido = e.target.value;
+                currentSigungu = '';
+                updateSigunguFilter();
+                applyFilters();
+            });
+
+            // 시군구 필터 이벤트
+            sigunguFilter.addEventListener('change', (e) => {
+                currentSigungu = e.target.value;
+                applyFilters();
+            });
+
+            // 타입 토글 이벤트
+            document.querySelectorAll('.type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentType = btn.dataset.type;
+                    applyFilters();
+                });
+            });
+        }
+
+        // 시군구 필터 업데이트
+        function updateSigunguFilter() {
+            const sigunguFilter = document.getElementById('sigunguFilter');
+            const sigunguDist = document.getElementById('sigunguDist');
+
+            sigunguFilter.innerHTML = '<option value="">전체 시/군/구</option>';
+
+            if (!currentSido) {
+                sigunguFilter.style.display = 'none';
+                sigunguDist.classList.remove('show');
+                return;
+            }
+
+            sigunguFilter.style.display = 'block';
+            sigunguDist.classList.add('show');
+
+            // 해당 시도의 시군구 통계
+            const sigunguStats = {};
+            storesData.filter(s => s.sido === currentSido).forEach(s => {
+                if (s.sigungu) {
+                    sigunguStats[s.sigungu] = (sigunguStats[s.sigungu] || 0) + 1;
+                }
+            });
+
+            const sidoTotal = storesData.filter(s => s.sido === currentSido).length;
+            const sortedSigungu = Object.entries(sigunguStats)
+                .sort((a, b) => sortDescending ? b[1] - a[1] : a[1] - b[1]);
+
+            sortedSigungu.forEach(([sigungu, count]) => {
+                const percent = ((count / sidoTotal) * 100).toFixed(1);
+                const option = document.createElement('option');
+                option.value = sigungu;
+                option.textContent = `${sigungu} (${count}개, ${percent}%)`;
+                sigunguFilter.appendChild(option);
+            });
+
+            // 시군구 분포 그리드 업데이트
+            updateSigunguGrid(sortedSigungu, sidoTotal);
+        }
+
+        // 시군구 분포 그리드
+        function updateSigunguGrid(sortedSigungu, sidoTotal) {
+            const grid = document.getElementById('sigunguGrid');
+
+            grid.innerHTML = sortedSigungu.map(([sigungu, count]) => {
+                const percent = ((count / sidoTotal) * 100).toFixed(1);
+                const isActive = currentSigungu === sigungu ? 'active' : '';
+                return `
+                    <div class="sigungu-item ${isActive}" onclick="selectSigungu('${sigungu}')">
+                        <span class="sigungu-name">${sigungu}</span>
+                        <span class="sigungu-count">${count}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 시군구 선택
+        function selectSigungu(sigungu) {
+            currentSigungu = currentSigungu === sigungu ? '' : sigungu;
+            document.getElementById('sigunguFilter').value = currentSigungu;
+            applyFilters();
+
+            // 그리드 active 상태 업데이트
+            document.querySelectorAll('.sigungu-item').forEach(item => {
+                const name = item.querySelector('.sigungu-name').textContent;
+                item.classList.toggle('active', name === currentSigungu);
+            });
+        }
+
+        // 지도 초기화
+        function initializeMap() {
+            const container = document.getElementById('map');
+            const options = {
+                center: new kakao.maps.LatLng(36.5, 127.5),
+                level: 13
+            };
+
+            map = new kakao.maps.Map(container, options);
+
+            clusterer = new kakao.maps.MarkerClusterer({
+                map: map,
+                averageCenter: true,
+                minLevel: 6,
+                styles: [{
+                    width: '50px',
+                    height: '50px',
+                    background: 'rgba(255, 107, 0, 0.9)',
+                    borderRadius: '50%',
+                    color: '#fff',
+                    textAlign: 'center',
+                    lineHeight: '50px',
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+                }]
+            });
+
+            applyFilters();
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            let filtered = storesData;
+            let baseForPercent = storesData.length;
+
+            if (currentSido) {
+                filtered = filtered.filter(s => s.sido === currentSido);
+            }
+
+            if (currentSigungu) {
+                filtered = filtered.filter(s => s.sigungu === currentSigungu);
+            }
+
+            if (currentType) {
+                filtered = filtered.filter(s => s.type === currentType);
+            }
+
+            updateStats(filtered, baseForPercent);
+            updateMarkers(filtered);
+            updateStoreList(filtered);
+            updateMapCenter();
+        }
+
+        // 지도 중심 업데이트
+        function updateMapCenter() {
+            if (currentSido && sidoCenter[currentSido]) {
+                const center = sidoCenter[currentSido];
+                map.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+                map.setLevel(currentSigungu ? 6 : center.level);
+            } else {
+                map.setCenter(new kakao.maps.LatLng(36.5, 127.5));
+                map.setLevel(13);
+            }
+        }
+
+        // 전국 시계/전당포 총 개수 (고정값)
+        const totalWatchNational = storesData.filter(s => s.type === '시계매장').length;
+        const totalPawnNational = storesData.filter(s => s.type === '전당포').length;
+
+        // 통계 업데이트
+        function updateStats(filtered, baseTotal) {
+            const total = filtered.length;
+            const watchStores = filtered.filter(s => s.type === '시계매장');
+            const pawnStores = filtered.filter(s => s.type === '전당포');
+            const watchCount = watchStores.length;
+            const pawnCount = pawnStores.length;
+            const percent = ((total / baseTotal) * 100).toFixed(1);
+
+            document.getElementById('filteredCount').textContent = total.toLocaleString();
+            document.getElementById('percentText').textContent = `(${percent}%)`;
+
+            document.getElementById('watchCount').textContent = watchCount.toLocaleString();
+            document.getElementById('pawnCount').textContent = pawnCount.toLocaleString();
+
+            // 지역별 분포 생성
+            updateRegionDistribution('watchRegionDist', watchStores, 'watch-chip');
+            updateRegionDistribution('pawnRegionDist', pawnStores, 'pawn-chip');
+
+            // 시트 타이틀
+            const sheetTitle = document.getElementById('sheetTitle');
+            const sheetSubtitle = document.getElementById('sheetSubtitle');
+
+            let title = '전체 매장';
+            if (currentSido) {
+                title = currentSigungu ? `${currentSido} ${currentSigungu}` : `${currentSido}`;
+            }
+            if (currentType) {
+                title += ` ${currentType}`;
+            }
+
+            sheetTitle.textContent = title;
+            sheetSubtitle.textContent = `${total.toLocaleString()}개 (전국 대비 ${percent}%)`;
+        }
+
+        // 지역별 분포 업데이트
+        function updateRegionDistribution(elementId, stores, chipClass) {
+            const container = document.getElementById(elementId);
+
+            // 시도가 선택되었으면 시군구 기준, 아니면 시도 기준
+            const groupKey = currentSido ? 'sigungu' : 'sido';
+
+            const regionStats = {};
+            stores.forEach(s => {
+                const key = s[groupKey];
+                if (key) {
+                    regionStats[key] = (regionStats[key] || 0) + 1;
+                }
+            });
+
+            const sortedRegions = Object.entries(regionStats)
+                .sort((a, b) => sortDescending ? b[1] - a[1] : a[1] - b[1])
+                .slice(0, 10); // 상위 10개만 표시
+
+            if (sortedRegions.length === 0) {
+                container.innerHTML = '<span style="color: #666; font-size: 10px;">데이터 없음</span>';
+                return;
+            }
+
+            container.innerHTML = sortedRegions.map(([region, count]) => {
+                return `<span class="region-chip ${chipClass}" onclick="selectRegion('${region}')">
+                    <span class="region-name">${region}</span>
+                    <span class="region-count">${count}</span>
+                </span>`;
+            }).join('');
+
+            // 나머지 지역 수 표시
+            const remaining = Object.keys(regionStats).length - 10;
+            if (remaining > 0) {
+                container.innerHTML += `<span style="color: #666; font-size: 10px;">+${remaining}</span>`;
+            }
+        }
+
+        // 지역 선택 (칩 클릭 시)
+        function selectRegion(region) {
+            if (currentSido) {
+                // 시도가 선택된 상태면 시군구 선택
+                currentSigungu = currentSigungu === region ? '' : region;
+                document.getElementById('sigunguFilter').value = currentSigungu;
+            } else {
+                // 시도 선택
+                currentSido = region;
+                document.getElementById('sidoFilter').value = region;
+                updateSigunguFilter();
+            }
+            applyFilters();
+        }
+
+        // 마커 업데이트
+        function updateMarkers(stores) {
+            clusterer.clear();
+            if (currentOverlay) {
+                currentOverlay.setMap(null);
+                currentOverlay = null;
+            }
+
+            markers = stores.map(store => {
+                const position = new kakao.maps.LatLng(store.lat, store.lng);
+                const marker = new kakao.maps.Marker({
+                    position: position,
+                    clickable: true
+                });
+
+                kakao.maps.event.addListener(marker, 'click', () => {
+                    showOverlay(store, position);
+                });
+
+                return marker;
+            });
+
+            clusterer.addMarkers(markers);
+        }
+
+        // 오버레이 표시
+        function showOverlay(store, position) {
+            if (currentOverlay) {
+                currentOverlay.setMap(null);
+            }
+
+            const iconClass = store.type === '시계매장' ? 'watch' : 'pawn';
+            const icon = store.type === '시계매장' ? '⌚' : '🏦';
+
+            const content = `
+                <div class="custom-overlay">
+                    <div class="overlay-header">
+                        <div class="overlay-icon ${iconClass}">${icon}</div>
+                        <div class="overlay-title">
+                            <div class="overlay-name">${store.name}</div>
+                            <div class="overlay-category">${store.type} · ${store.sigungu || ''}</div>
+                        </div>
+                        <button class="overlay-close" onclick="closeOverlay()">✕</button>
+                    </div>
+                    <div class="overlay-body">
+                        <div class="overlay-row">
+                            <span class="overlay-label">주소</span>
+                            <span class="overlay-value">${store.address || '-'}</span>
+                        </div>
+                        <div class="overlay-row">
+                            <span class="overlay-label">전화</span>
+                            <span class="overlay-value">${store.phone || '-'}</span>
+                        </div>
+                        <a href="${store.url}" target="_blank" class="overlay-link">카카오맵에서 보기</a>
+                    </div>
+                </div>
+            `;
+
+            currentOverlay = new kakao.maps.CustomOverlay({
+                content: content,
+                position: position,
+                yAnchor: 1.3
+            });
+
+            currentOverlay.setMap(map);
+            map.panTo(position);
+        }
+
+        function closeOverlay() {
+            if (currentOverlay) {
+                currentOverlay.setMap(null);
+                currentOverlay = null;
+            }
+        }
+
+        // 매장 목록 업데이트
+        function updateStoreList(stores) {
+            const list = document.getElementById('storeList');
+
+            if (stores.length === 0) {
+                list.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">매장이 없습니다</div>';
+                return;
+            }
+
+            list.innerHTML = stores.slice(0, 100).map(store => {
+                const iconClass = store.type === '시계매장' ? 'watch' : 'pawn';
+                const icon = store.type === '시계매장' ? '⌚' : '🏦';
+                const badgeClass = store.type === '시계매장' ? 'watch' : 'pawn';
+
+                return `
+                    <div class="store-item" onclick="focusStore(${store.lat}, ${store.lng})">
+                        <div class="store-icon ${iconClass}">${icon}</div>
+                        <div class="store-info">
+                            <div class="store-name">${store.name}</div>
+                            <div class="store-address">${store.address || store.sigungu}</div>
+                        </div>
+                        <span class="store-type-badge ${badgeClass}">${store.sigungu || store.type}</span>
+                    </div>
+                `;
+            }).join('');
+
+            if (stores.length > 100) {
+                list.innerHTML += `<div style="padding: 12px; text-align: center; color: #666; font-size: 11px;">
+                    외 ${(stores.length - 100).toLocaleString()}개 매장
+                </div>`;
+            }
+        }
+
+        function focusStore(lat, lng) {
+            const position = new kakao.maps.LatLng(lat, lng);
+            map.setCenter(position);
+            map.setLevel(3);
+
+            const store = storesData.find(s => s.lat === lat && s.lng === lng);
+            if (store) {
+                showOverlay(store, position);
+            }
+
+            document.getElementById('bottomSheet').classList.add('collapsed');
+        }
+
+        // 바텀시트 토글
+        const bottomSheet = document.getElementById('bottomSheet');
+        const sheetHandle = document.getElementById('sheetHandle');
+
+        sheetHandle.addEventListener('click', () => {
+            bottomSheet.classList.toggle('collapsed');
+        });
+
+        let startY = 0;
+        sheetHandle.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        });
+
+        sheetHandle.addEventListener('touchmove', (e) => {
+            const deltaY = e.touches[0].clientY - startY;
+            if (deltaY > 50) {
+                bottomSheet.classList.add('collapsed');
+            } else if (deltaY < -50) {
+                bottomSheet.classList.remove('collapsed');
+            }
+        });
+
+        // 초기화
+        kakao.maps.load(function() {
+            initApp();
+        });
+    </script>
+</body>
+</html>
