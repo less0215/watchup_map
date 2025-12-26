@@ -168,10 +168,42 @@
             font-size: 12px;
         }
 
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .stats-toggle {
+            color: var(--gray);
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .stats-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
         .stats-total {
             color: var(--white);
-            margin-bottom: 10px;
             font-size: 13px;
+        }
+
+        .stats-detail {
+            max-height: 300px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, margin-top 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .stats-detail.collapsed {
+            max-height: 0;
+            margin-top: 0;
+        }
+
+        .stats-header:hover .stats-toggle {
+            color: var(--orange);
         }
 
         .stats-total strong {
@@ -707,10 +739,13 @@
     </div>
 
     <div class="stats-bar">
-        <div class="stats-total">
-            <strong id="filteredCount">0</strong>개 매장 <span id="percentText">(100%)</span>
+        <div class="stats-header" onclick="toggleStats()">
+            <div class="stats-total">
+                <strong id="filteredCount">0</strong>개 매장 <span id="percentText">(100%)</span>
+            </div>
+            <span class="stats-toggle" id="statsToggle">▼</span>
         </div>
-        <div class="stats-detail">
+        <div class="stats-detail" id="statsDetail">
             <div class="stats-section">
                 <div class="stats-section-header">
                     <span class="stats-label watch-label">시계매장</span>
@@ -775,6 +810,14 @@
             '경남': { lat: 35.4606, lng: 128.2132, level: 10 },
             '제주': { lat: 33.4890, lng: 126.4983, level: 10 }
         };
+
+        // 통계 접기/펼치기
+        function toggleStats() {
+            const detail = document.getElementById('statsDetail');
+            const toggle = document.getElementById('statsToggle');
+            detail.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed');
+        }
 
         // 홈으로 초기화
         function resetFilters() {
