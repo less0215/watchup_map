@@ -789,7 +789,7 @@
         let currentSido = '';
         let currentSigungu = '';
         let currentType = '';
-        let sortDescending = true;
+        let sortDescending = true; // true: 내림차순, false: 오름차순
 
         const sidoCenter = {
             '서울': { lat: 37.5665, lng: 126.9780, level: 8 },
@@ -835,6 +835,9 @@
         // 초기화 함수
         function initApp() {
             const total = storesData.length;
+            const watchTotal = storesData.filter(s => s.type === '시계매장').length;
+            const pawnTotal = storesData.filter(s => s.type === '전당포').length;
+
             document.getElementById('totalCount').innerHTML = `전체 <strong>${total.toLocaleString()}</strong>개`;
             initializeFilters();
             initializeMap();
@@ -857,6 +860,7 @@
             const sidoFilter = document.getElementById('sidoFilter');
             const currentValue = sidoFilter.value;
 
+            // 첫 번째 옵션(전체 지역) 제외하고 삭제
             while (sidoFilter.options.length > 1) {
                 sidoFilter.remove(1);
             }
@@ -890,6 +894,7 @@
 
             updateSidoOptions();
 
+            // 시도 필터 이벤트
             sidoFilter.addEventListener('change', (e) => {
                 currentSido = e.target.value;
                 currentSigungu = '';
@@ -897,11 +902,13 @@
                 applyFilters();
             });
 
+            // 시군구 필터 이벤트
             sigunguFilter.addEventListener('change', (e) => {
                 currentSigungu = e.target.value;
                 applyFilters();
             });
 
+            // 타입 토글 이벤트
             document.querySelectorAll('.type-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
@@ -928,6 +935,7 @@
             sigunguFilter.style.display = 'block';
             sigunguDist.classList.add('show');
 
+            // 해당 시도의 시군구 통계
             const sigunguStats = {};
             storesData.filter(s => s.sido === currentSido).forEach(s => {
                 if (s.sigungu) {
@@ -947,6 +955,7 @@
                 sigunguFilter.appendChild(option);
             });
 
+            // 시군구 분포 그리드 업데이트
             updateSigunguGrid(sortedSigungu, sidoTotal);
         }
 
@@ -955,6 +964,7 @@
             const grid = document.getElementById('sigunguGrid');
 
             grid.innerHTML = sortedSigungu.map(([sigungu, count]) => {
+                const percent = ((count / sidoTotal) * 100).toFixed(1);
                 const isActive = currentSigungu === sigungu ? 'active' : '';
                 return `
                     <div class="sigungu-item ${isActive}" onclick="selectSigungu('${sigungu}')">
@@ -971,6 +981,7 @@
             document.getElementById('sigunguFilter').value = currentSigungu;
             applyFilters();
 
+            // 그리드 active 상태 업데이트
             document.querySelectorAll('.sigungu-item').forEach(item => {
                 const name = item.querySelector('.sigungu-name').textContent;
                 item.classList.toggle('active', name === currentSigungu);
@@ -1043,24 +1054,53 @@
             }
         }
 
+        // 전국 시계/전당포 총 개수 (고정값)
+        const totalWatchNational = storesData.filter(s => s.type === '시계매장').length;
+        const totalPawnNational = storesData.filter(s => s.type === '전당포').length;
+
         // 통계 업데이트
         function updateStats(filtered, baseTotal) {
             const total = filtered.length;
-            const watchStores = filtered.filter(s => s.type === '시계매장');
-            const pawnStores = filtered.filter(s => s.type === '전당포');
-            const watchCount = watchStores.length;
-            const pawnCount = pawnStores.length;
             const percent = ((total / baseTotal) * 100).toFixed(1);
 
             document.getElementById('filteredCount').textContent = total.toLocaleString();
             document.getElementById('percentText').textContent = `(${percent}%)`;
 
-            document.getElementById('watchCount').textContent = watchCount.toLocaleString();
-            document.getElementById('pawnCount').textContent = pawnCount.toLocaleString();
+            // 지역 필터만 적용된 데이터 (타입 필터 제외)
+            let regionFiltered = storesData;
+            if (currentSido) {
+                regionFiltered = regionFiltered.filter(s => s.sido === currentSido);
+            }
+            if (currentSigungu) {
+                regionFiltered = regionFiltered.filter(s => s.sigungu === currentSigungu);
+            }
 
+            const watchStores = regionFiltered.filter(s => s.type === '시계매장');
+            const pawnStores = regionFiltered.filter(s => s.type === '전당포');
+
+            document.getElementById('watchCount').textContent = watchStores.length.toLocaleString();
+            document.getElementById('pawnCount').textContent = pawnStores.length.toLocaleString();
+
+            // 통계 섹션 표시/숨김
+            const watchSection = document.getElementById('watchRegionDist').parentElement;
+            const pawnSection = document.getElementById('pawnRegionDist').parentElement;
+
+            if (currentType === '시계매장') {
+                watchSection.style.display = 'block';
+                pawnSection.style.display = 'none';
+            } else if (currentType === '전당포') {
+                watchSection.style.display = 'none';
+                pawnSection.style.display = 'block';
+            } else {
+                watchSection.style.display = 'block';
+                pawnSection.style.display = 'block';
+            }
+
+            // 지역별 분포 생성
             updateRegionDistribution('watchRegionDist', watchStores, 'watch-chip');
             updateRegionDistribution('pawnRegionDist', pawnStores, 'pawn-chip');
 
+            // 시트 타이틀
             const sheetTitle = document.getElementById('sheetTitle');
             const sheetSubtitle = document.getElementById('sheetSubtitle');
 
@@ -1080,6 +1120,7 @@
         function updateRegionDistribution(elementId, stores, chipClass) {
             const container = document.getElementById(elementId);
 
+            // 시도가 선택되었으면 시군구 기준, 아니면 시도 기준
             const groupKey = currentSido ? 'sigungu' : 'sido';
 
             const regionStats = {};
@@ -1092,7 +1133,7 @@
 
             const sortedRegions = Object.entries(regionStats)
                 .sort((a, b) => sortDescending ? b[1] - a[1] : a[1] - b[1])
-                .slice(0, 10);
+                .slice(0, 10); // 상위 10개만 표시
 
             if (sortedRegions.length === 0) {
                 container.innerHTML = '<span style="color: #666; font-size: 10px;">데이터 없음</span>';
@@ -1106,18 +1147,21 @@
                 </span>`;
             }).join('');
 
+            // 나머지 지역 수 표시
             const remaining = Object.keys(regionStats).length - 10;
             if (remaining > 0) {
                 container.innerHTML += `<span style="color: #666; font-size: 10px;">+${remaining}</span>`;
             }
         }
 
-        // 지역 선택
+        // 지역 선택 (칩 클릭 시)
         function selectRegion(region) {
             if (currentSido) {
+                // 시도가 선택된 상태면 시군구 선택
                 currentSigungu = currentSigungu === region ? '' : region;
                 document.getElementById('sigunguFilter').value = currentSigungu;
             } else {
+                // 시도 선택
                 currentSido = region;
                 document.getElementById('sidoFilter').value = region;
                 updateSigunguFilter();
