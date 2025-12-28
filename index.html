@@ -72,10 +72,147 @@
             color: var(--orange);
         }
 
+        /* 검색 바 */
+        .search-bar {
+            background: var(--white);
+            padding: 10px 12px;
+            position: relative;
+            z-index: 150;
+        }
+
+        .search-container {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            padding-left: 36px;
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            font-size: 13px;
+            background: var(--white);
+            color: var(--black);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray);
+            font-size: 14px;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border: 1px solid var(--light-gray);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .search-results.show {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--light-gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .search-result-icon.watch {
+            background: var(--orange);
+            color: white;
+        }
+
+        .search-result-icon.pawn {
+            background: var(--black);
+            color: white;
+        }
+
+        .search-result-icon.visited {
+            background: #4CAF50;
+        }
+
+        .search-result-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-result-name {
+            font-size: 13px;
+            color: var(--black);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-result-name mark {
+            background: #FFF3E0;
+            color: var(--orange);
+        }
+
+        .search-result-address {
+            font-size: 11px;
+            color: var(--gray);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-result-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .search-result-badge.visited {
+            background: #E8F5E9;
+            color: #4CAF50;
+        }
+
         /* 필터 바 */
         .filter-bar {
             background: var(--white);
             padding: 10px 12px;
+            padding-top: 0;
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -857,6 +994,14 @@
         </div>
     </div>
 
+    <div class="search-bar">
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" id="searchInput" placeholder="매장명 검색..." autocomplete="off">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+
     <div class="filter-bar">
         <div class="filter-row">
             <select class="filter-select" id="sidoFilter">
@@ -1074,6 +1219,89 @@
             });
         }
 
+        // 검색 기능
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            let debounceTimer;
+
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                const query = e.target.value.trim();
+
+                if (query.length < 1) {
+                    searchResults.classList.remove('show');
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => {
+                    const results = searchStores(query);
+                    displaySearchResults(results, query);
+                }, 150);
+            });
+
+            searchInput.addEventListener('focus', (e) => {
+                if (e.target.value.trim().length >= 1) {
+                    searchResults.classList.add('show');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-container')) {
+                    searchResults.classList.remove('show');
+                }
+            });
+        }
+
+        function searchStores(query) {
+            const lowerQuery = query.toLowerCase();
+            return storesData
+                .filter(store =>
+                    store.name.toLowerCase().includes(lowerQuery) ||
+                    (store.address && store.address.toLowerCase().includes(lowerQuery))
+                )
+                .slice(0, 10);
+        }
+
+        function displaySearchResults(results, query) {
+            const searchResults = document.getElementById('searchResults');
+
+            if (results.length === 0) {
+                searchResults.innerHTML = '<div style="padding: 12px; text-align: center; color: #666;">검색 결과가 없습니다</div>';
+                searchResults.classList.add('show');
+                return;
+            }
+
+            searchResults.innerHTML = results.map(store => {
+                const visited = isVisited(getStoreId(store));
+                const iconClass = visited ? 'visited' : (store.type === '시계매장' ? 'watch' : 'pawn');
+                const icon = visited ? '✓' : (store.type === '시계매장' ? '⌚' : '🏦');
+                const highlightedName = store.name.replace(
+                    new RegExp(`(${query})`, 'gi'),
+                    '<mark>$1</mark>'
+                );
+
+                return `
+                    <div class="search-result-item" onclick="selectSearchResult(${store.lat}, ${store.lng})">
+                        <div class="search-result-icon ${iconClass}">${icon}</div>
+                        <div class="search-result-info">
+                            <div class="search-result-name">${highlightedName}</div>
+                            <div class="search-result-address">${store.sigungu} · ${store.type}</div>
+                        </div>
+                        ${visited ? '<span class="search-result-badge visited">방문</span>' : ''}
+                    </div>
+                `;
+            }).join('');
+
+            searchResults.classList.add('show');
+        }
+
+        function selectSearchResult(lat, lng) {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').classList.remove('show');
+            focusStore(lat, lng);
+        }
+
         const sidoCenter = {
             '서울': { lat: 37.5665, lng: 126.9780, level: 8 },
             '부산': { lat: 35.1796, lng: 129.0756, level: 8 },
@@ -1130,6 +1358,7 @@
                 applyFilters();
             });
 
+            initSearch();
             initializeFilters();
             initializeMap();
         }
@@ -1465,6 +1694,34 @@
             applyFilters();
         }
 
+        // 마커 이미지 생성
+        function createMarkerImage(visited, type) {
+            // 방문한 곳: 초록색, 미방문 시계: 주황색, 미방문 전당포: 검정색
+            let color;
+            if (visited) {
+                color = '#4CAF50'; // 초록색
+            } else if (type === '시계매장') {
+                color = '#FF6B00'; // 주황색
+            } else {
+                color = '#333333'; // 검정색
+            }
+
+            const svg = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
+                    <path fill="${color}" stroke="#fff" stroke-width="2" d="M14 1C6.82 1 1 6.82 1 14c0 10.5 13 24 13 24s13-13.5 13-24c0-7.18-5.82-13-13-13z"/>
+                    ${visited ? '<circle cx="14" cy="14" r="5" fill="#fff"/><path fill="' + color + '" d="M12 14l2 2 4-4" stroke="#fff" stroke-width="2" fill="none"/>' : '<circle cx="14" cy="14" r="5" fill="#fff"/>'}
+                </svg>
+            `;
+
+            const markerImage = new kakao.maps.MarkerImage(
+                'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
+                new kakao.maps.Size(28, 40),
+                { offset: new kakao.maps.Point(14, 40) }
+            );
+
+            return markerImage;
+        }
+
         // 마커 업데이트
         function updateMarkers(stores) {
             clusterer.clear();
@@ -1475,9 +1732,13 @@
 
             markers = stores.map(store => {
                 const position = new kakao.maps.LatLng(store.lat, store.lng);
+                const visited = isVisited(getStoreId(store));
+                const markerImage = createMarkerImage(visited, store.type);
+
                 const marker = new kakao.maps.Marker({
                     position: position,
-                    clickable: true
+                    clickable: true,
+                    image: markerImage
                 });
 
                 kakao.maps.event.addListener(marker, 'click', () => {
