@@ -294,6 +294,142 @@
             background: #555;
         }
 
+        /* 방문 기록 바 */
+        .visit-bar {
+            background: var(--black);
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--dark-gray);
+        }
+
+        .visit-stats {
+            font-size: 12px;
+            color: var(--gray);
+        }
+
+        .visit-stats strong {
+            color: #4CAF50;
+        }
+
+        .visit-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .visit-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+            border: 1px solid var(--dark-gray);
+            border-radius: 6px;
+            background: var(--dark-gray);
+            color: var(--white);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .visit-btn:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+
+        .visit-btn.primary {
+            background: var(--orange);
+            border-color: var(--orange);
+        }
+
+        .visit-btn.primary:hover {
+            background: var(--orange-dark);
+        }
+
+        .visit-filter {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--gray);
+        }
+
+        .visit-filter input[type="checkbox"] {
+            accent-color: var(--orange);
+        }
+
+        /* 방문 완료 매장 스타일 */
+        .store-item.visited {
+            background: #f5f5f5;
+        }
+
+        .store-item.visited .store-name {
+            color: #999;
+        }
+
+        .store-item.visited .store-icon {
+            opacity: 0.5;
+        }
+
+        .visited-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #4CAF50;
+            color: white;
+            margin-left: 4px;
+        }
+
+        /* 오버레이 방문 버튼 */
+        .overlay-visit-btn {
+            display: block;
+            margin-top: 8px;
+            padding: 8px;
+            text-align: center;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .overlay-visit-btn.not-visited {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .overlay-visit-btn.not-visited:hover {
+            background: #45a049;
+        }
+
+        .overlay-visit-btn.visited {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .overlay-visit-btn.visited:hover {
+            background: #e0e0e0;
+        }
+
+        /* 토스트 메시지 */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark-gray);
+            color: var(--white);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
         /* 시군구 분포 */
         .sigungu-distribution {
             background: var(--black);
@@ -767,6 +903,21 @@
         <div class="sigungu-grid" id="sigunguGrid"></div>
     </div>
 
+    <div class="visit-bar">
+        <div class="visit-stats">
+            방문 <strong id="visitedCount">0</strong>곳
+            <label class="visit-filter">
+                <input type="checkbox" id="hideVisited"> 미방문만
+            </label>
+        </div>
+        <div class="visit-buttons">
+            <button class="visit-btn" onclick="copyVisitedToClipboard()">복사</button>
+            <button class="visit-btn" onclick="downloadVisitedCSV()">CSV</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
     <div class="map-container">
         <div id="map"></div>
     </div>
@@ -790,6 +941,138 @@
         let currentSigungu = '';
         let currentType = '';
         let sortDescending = true; // true: 내림차순, false: 오름차순
+        let hideVisited = false;
+
+        // 방문 기록 관리 (localStorage)
+        const VISITED_KEY = 'watchup_visited_stores';
+
+        function getVisitedStores() {
+            const data = localStorage.getItem(VISITED_KEY);
+            return data ? JSON.parse(data) : {};
+        }
+
+        function saveVisitedStores(visited) {
+            localStorage.setItem(VISITED_KEY, JSON.stringify(visited));
+        }
+
+        function isVisited(storeId) {
+            const visited = getVisitedStores();
+            return !!visited[storeId];
+        }
+
+        function getStoreId(store) {
+            return `${store.name}_${store.lat}_${store.lng}`;
+        }
+
+        function toggleVisit(store) {
+            const visited = getVisitedStores();
+            const storeId = getStoreId(store);
+
+            if (visited[storeId]) {
+                delete visited[storeId];
+                showToast('방문 취소됨');
+            } else {
+                visited[storeId] = {
+                    name: store.name,
+                    address: store.address,
+                    phone: store.phone,
+                    type: store.type,
+                    sido: store.sido,
+                    sigungu: store.sigungu,
+                    visitedAt: new Date().toISOString()
+                };
+                showToast('방문 완료!');
+            }
+
+            saveVisitedStores(visited);
+            updateVisitedCount();
+            applyFilters();
+
+            // 오버레이 업데이트
+            if (currentOverlay) {
+                const position = currentOverlay.getPosition();
+                showOverlay(store, position);
+            }
+        }
+
+        function updateVisitedCount() {
+            const visited = getVisitedStores();
+            document.getElementById('visitedCount').textContent = Object.keys(visited).length;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // CSV 다운로드
+        function downloadVisitedCSV() {
+            const visited = getVisitedStores();
+            const stores = Object.values(visited);
+
+            if (stores.length === 0) {
+                showToast('방문 기록이 없습니다');
+                return;
+            }
+
+            const headers = ['매장명', '주소', '전화번호', '유형', '시도', '시군구', '방문일시'];
+            const rows = stores.map(s => [
+                s.name,
+                s.address || '',
+                s.phone || '',
+                s.type,
+                s.sido,
+                s.sigungu,
+                new Date(s.visitedAt).toLocaleString('ko-KR')
+            ]);
+
+            const csvContent = [headers, ...rows]
+                .map(row => row.map(cell => `"${cell}"`).join(','))
+                .join('\n');
+
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `방문기록_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            showToast(`${stores.length}건 다운로드 완료`);
+        }
+
+        // 클립보드 복사
+        function copyVisitedToClipboard() {
+            const visited = getVisitedStores();
+            const stores = Object.values(visited);
+
+            if (stores.length === 0) {
+                showToast('방문 기록이 없습니다');
+                return;
+            }
+
+            const headers = '매장명\t주소\t전화번호\t유형\t시도\t시군구\t방문일시';
+            const rows = stores.map(s => [
+                s.name,
+                s.address || '',
+                s.phone || '',
+                s.type,
+                s.sido,
+                s.sigungu,
+                new Date(s.visitedAt).toLocaleString('ko-KR')
+            ].join('\t'));
+
+            const text = [headers, ...rows].join('\n');
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`${stores.length}건 복사 완료`);
+            }).catch(() => {
+                showToast('복사 실패');
+            });
+        }
 
         const sidoCenter = {
             '서울': { lat: 37.5665, lng: 126.9780, level: 8 },
@@ -839,6 +1122,14 @@
             const pawnTotal = storesData.filter(s => s.type === '전당포').length;
 
             document.getElementById('totalCount').innerHTML = `전체 <strong>${total.toLocaleString()}</strong>개`;
+            updateVisitedCount();
+
+            // 미방문만 보기 체크박스
+            document.getElementById('hideVisited').addEventListener('change', (e) => {
+                hideVisited = e.target.checked;
+                applyFilters();
+            });
+
             initializeFilters();
             initializeMap();
         }
@@ -1036,6 +1327,11 @@
                 filtered = filtered.filter(s => s.type === currentType);
             }
 
+            // 미방문만 보기 필터
+            if (hideVisited) {
+                filtered = filtered.filter(s => !isVisited(getStoreId(s)));
+            }
+
             updateStats(filtered, baseForPercent);
             updateMarkers(filtered);
             updateStoreList(filtered);
@@ -1202,13 +1498,17 @@
 
             const iconClass = store.type === '시계매장' ? 'watch' : 'pawn';
             const icon = store.type === '시계매장' ? '⌚' : '🏦';
+            const storeId = getStoreId(store);
+            const visited = isVisited(storeId);
+            const visitBtnClass = visited ? 'visited' : 'not-visited';
+            const visitBtnText = visited ? '방문 취소' : '방문 완료';
 
             const content = `
                 <div class="custom-overlay">
                     <div class="overlay-header">
                         <div class="overlay-icon ${iconClass}">${icon}</div>
                         <div class="overlay-title">
-                            <div class="overlay-name">${store.name}</div>
+                            <div class="overlay-name">${store.name}${visited ? '<span class="visited-badge">방문함</span>' : ''}</div>
                             <div class="overlay-category">${store.type} · ${store.sigungu || ''}</div>
                         </div>
                         <button class="overlay-close" onclick="closeOverlay()">✕</button>
@@ -1223,6 +1523,9 @@
                             <span class="overlay-value">${store.phone || '-'}</span>
                         </div>
                         <a href="${store.url}" target="_blank" class="overlay-link">카카오맵에서 보기</a>
+                        <button class="overlay-visit-btn ${visitBtnClass}" onclick="toggleVisitFromOverlay('${storeId.replace(/'/g, "\\'")}')">
+                            ${visitBtnText}
+                        </button>
                     </div>
                 </div>
             `;
@@ -1244,6 +1547,14 @@
             }
         }
 
+        // 오버레이에서 방문 토글
+        function toggleVisitFromOverlay(storeId) {
+            const store = storesData.find(s => getStoreId(s) === storeId);
+            if (store) {
+                toggleVisit(store);
+            }
+        }
+
         // 매장 목록 업데이트
         function updateStoreList(stores) {
             const list = document.getElementById('storeList');
@@ -1257,12 +1568,14 @@
                 const iconClass = store.type === '시계매장' ? 'watch' : 'pawn';
                 const icon = store.type === '시계매장' ? '⌚' : '🏦';
                 const badgeClass = store.type === '시계매장' ? 'watch' : 'pawn';
+                const visited = isVisited(getStoreId(store));
+                const visitedClass = visited ? 'visited' : '';
 
                 return `
-                    <div class="store-item" onclick="focusStore(${store.lat}, ${store.lng})">
+                    <div class="store-item ${visitedClass}" onclick="focusStore(${store.lat}, ${store.lng})">
                         <div class="store-icon ${iconClass}">${icon}</div>
                         <div class="store-info">
-                            <div class="store-name">${store.name}</div>
+                            <div class="store-name">${store.name}${visited ? '<span class="visited-badge">방문</span>' : ''}</div>
                             <div class="store-address">${store.address || store.sigungu}</div>
                         </div>
                         <span class="store-type-badge ${badgeClass}">${store.sigungu || store.type}</span>
