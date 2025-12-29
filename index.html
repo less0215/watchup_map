@@ -441,6 +441,14 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--dark-gray);
+            max-height: 50px;
+            overflow: hidden;
+            transition: max-height 0.3s, padding 0.3s;
+        }
+
+        .visit-bar.collapsed {
+            max-height: 0;
+            padding: 0 12px;
         }
 
         .visit-stats {
@@ -574,11 +582,15 @@
             background: var(--black);
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s;
+            transition: max-height 0.3s, padding 0.3s;
         }
 
         .sigungu-distribution.show {
-            max-height: 250px;
+            max-height: 300px;
+        }
+
+        .sigungu-distribution.stats-collapsed {
+            max-height: 0 !important;
         }
 
         .sigungu-header {
@@ -1375,12 +1387,26 @@
             '제주': { lat: 33.4890, lng: 126.4983, level: 10 }
         };
 
-        // 통계 접기/펼치기
+        // 통계 접기/펼치기 (시군구 + 방문바 포함)
         function toggleStats() {
             const detail = document.getElementById('statsDetail');
             const toggle = document.getElementById('statsToggle');
+            const sigunguDist = document.getElementById('sigunguDist');
+            const visitBar = document.querySelector('.visit-bar');
+
+            const isCollapsing = !detail.classList.contains('collapsed');
+
             detail.classList.toggle('collapsed');
             toggle.classList.toggle('collapsed');
+
+            // 시군구 분포와 방문 바도 함께 접기/펼치기
+            if (isCollapsing) {
+                sigunguDist.classList.add('stats-collapsed');
+                visitBar.classList.add('collapsed');
+            } else {
+                sigunguDist.classList.remove('stats-collapsed');
+                visitBar.classList.remove('collapsed');
+            }
         }
 
         // 시군구 접기/펼치기
