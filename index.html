@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>전국 시계매장 및 전당포</title>
-    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=8595e08edc267cf6c5acb37884bd6ac3&libraries=clusterer&autoload=false"></script>
+    <script type="text/javascript"
+        src="//dapi.kakao.com/v2/maps/sdk.js?appkey=8595e08edc267cf6c5acb37884bd6ac3&libraries=clusterer&autoload=false"></script>
     <style>
         * {
             margin: 0;
@@ -121,7 +123,7 @@
             max-height: 250px;
             overflow-y: auto;
             display: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .search-results.show {
@@ -570,16 +572,58 @@
         /* 시군구 분포 */
         .sigungu-distribution {
             background: var(--black);
-            padding: 8px 12px;
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s, padding 0.3s;
+            transition: max-height 0.3s;
         }
 
         .sigungu-distribution.show {
-            max-height: 200px;
+            max-height: 250px;
+        }
+
+        .sigungu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--dark-gray);
+        }
+
+        .sigungu-header:hover {
+            background: var(--dark-gray);
+        }
+
+        .sigungu-title {
+            font-size: 12px;
+            color: var(--white);
+        }
+
+        .sigungu-title strong {
+            color: var(--orange);
+        }
+
+        .sigungu-toggle {
+            color: var(--gray);
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .sigungu-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .sigungu-content {
+            max-height: 200px;
             overflow-y: auto;
+            padding: 10px 12px;
+            transition: max-height 0.3s, padding 0.3s;
+        }
+
+        .sigungu-content.collapsed {
+            max-height: 0;
+            padding: 0 12px;
+            overflow: hidden;
         }
 
         .sigungu-grid {
@@ -898,7 +942,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* 반응형 - 태블릿 이상 */
@@ -981,6 +1027,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="loading" id="loading">
         <div class="loading-spinner"></div>
@@ -1045,7 +1092,13 @@
     </div>
 
     <div class="sigungu-distribution" id="sigunguDist">
-        <div class="sigungu-grid" id="sigunguGrid"></div>
+        <div class="sigungu-header" onclick="toggleSigungu()">
+            <div class="sigungu-title" id="sigunguTitle">시군구 선택</div>
+            <span class="sigungu-toggle" id="sigunguToggle">▼</span>
+        </div>
+        <div class="sigungu-content" id="sigunguContent">
+            <div class="sigungu-grid" id="sigunguGrid"></div>
+        </div>
     </div>
 
     <div class="visit-bar">
@@ -1330,6 +1383,14 @@
             toggle.classList.toggle('collapsed');
         }
 
+        // 시군구 접기/펼치기
+        function toggleSigungu() {
+            const content = document.getElementById('sigunguContent');
+            const toggle = document.getElementById('sigunguToggle');
+            content.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed');
+        }
+
         // 홈으로 초기화
         function resetFilters() {
             document.getElementById('sidoFilter').value = '';
@@ -1455,6 +1516,10 @@
             sigunguFilter.style.display = 'block';
             sigunguDist.classList.add('show');
 
+            // 시군구 패널 열기 (접혀있으면)
+            document.getElementById('sigunguContent').classList.remove('collapsed');
+            document.getElementById('sigunguToggle').classList.remove('collapsed');
+
             // 해당 시도의 시군구 통계
             const sigunguStats = {};
             storesData.filter(s => s.sido === currentSido).forEach(s => {
@@ -1477,6 +1542,10 @@
 
             // 시군구 분포 그리드 업데이트
             updateSigunguGrid(sortedSigungu, sidoTotal);
+
+            // 시군구 헤더 타이틀 업데이트
+            document.getElementById('sigunguTitle').innerHTML =
+                `<strong>${currentSido}</strong> 시군구 (${sortedSigungu.length}개)`;
         }
 
         // 시군구 분포 그리드
@@ -1506,6 +1575,25 @@
                 const name = item.querySelector('.sigungu-name').textContent;
                 item.classList.toggle('active', name === currentSigungu);
             });
+
+            // 시군구 선택 시 자동으로 접기 + 해당 지역으로 이동
+            if (currentSigungu) {
+                document.getElementById('sigunguContent').classList.add('collapsed');
+                document.getElementById('sigunguToggle').classList.add('collapsed');
+
+                // 해당 시군구 매장들의 중심 좌표 계산
+                const sigunguStores = storesData.filter(s =>
+                    s.sido === currentSido && s.sigungu === currentSigungu
+                );
+
+                if (sigunguStores.length > 0) {
+                    const bounds = new kakao.maps.LatLngBounds();
+                    sigunguStores.forEach(s => {
+                        bounds.extend(new kakao.maps.LatLng(s.lat, s.lng));
+                    });
+                    map.setBounds(bounds, 50); // 50px 패딩
+                }
+            }
         }
 
         // 지도 초기화
@@ -1699,22 +1787,22 @@
             // 방문한 곳: 초록색, 미방문 시계: 주황색, 미방문 전당포: 검정색
             let color;
             if (visited) {
-                color = '#4CAF50'; // 초록색
+                color = '%234CAF50'; // 초록색 (URL encoded #)
             } else if (type === '시계매장') {
-                color = '#FF6B00'; // 주황색
+                color = '%23FF6B00'; // 주황색
             } else {
-                color = '#333333'; // 검정색
+                color = '%23333333'; // 검정색
             }
 
-            const svg = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
-                    <path fill="${color}" stroke="#fff" stroke-width="2" d="M14 1C6.82 1 1 6.82 1 14c0 10.5 13 24 13 24s13-13.5 13-24c0-7.18-5.82-13-13-13z"/>
-                    ${visited ? '<circle cx="14" cy="14" r="5" fill="#fff"/><path fill="' + color + '" d="M12 14l2 2 4-4" stroke="#fff" stroke-width="2" fill="none"/>' : '<circle cx="14" cy="14" r="5" fill="#fff"/>'}
-                </svg>
-            `;
+            let svg;
+            if (visited) {
+                svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40"><path fill="' + color + '" stroke="%23fff" stroke-width="2" d="M14 1C6.82 1 1 6.82 1 14c0 10.5 13 24 13 24s13-13.5 13-24c0-7.18-5.82-13-13-13z"/><circle cx="14" cy="14" r="5" fill="%23fff"/><polyline points="10,14 13,17 18,11" stroke="%23fff" stroke-width="2" fill="none"/></svg>';
+            } else {
+                svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40"><path fill="' + color + '" stroke="%23fff" stroke-width="2" d="M14 1C6.82 1 1 6.82 1 14c0 10.5 13 24 13 24s13-13.5 13-24c0-7.18-5.82-13-13-13z"/><circle cx="14" cy="14" r="5" fill="%23fff"/></svg>';
+            }
 
             const markerImage = new kakao.maps.MarkerImage(
-                'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
+                'data:image/svg+xml,' + svg,
                 new kakao.maps.Size(28, 40),
                 { offset: new kakao.maps.Point(14, 40) }
             );
@@ -1887,9 +1975,10 @@
         });
 
         // 초기화
-        kakao.maps.load(function() {
+        kakao.maps.load(function () {
             initApp();
         });
     </script>
 </body>
+
 </html>
